@@ -1,0 +1,9 @@
+.env
+.env.*
+api/**
+!api/index.ts
+node_modules
+dist
+dist-ssr
+.vite
+.DS_Store
