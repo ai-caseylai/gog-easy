@@ -1,5 +1,6 @@
 .env
 .env.*
+.vercel
 api/**
 !api/index.ts
 node_modules

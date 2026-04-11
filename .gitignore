@@ -13,6 +13,8 @@ dist-ssr
 *.local
 .env
 .env.*
+.vercel
+gog-easy-upload.zip
 
 # Editor directories and files
 .vscode/*
