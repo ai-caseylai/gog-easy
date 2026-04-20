@@ -18,6 +18,9 @@ type OpenClawStatus = {
   providerId: string | null
   model: string | null
   apiKeyHint: string | null
+  providerId2: string | null
+  model2: string | null
+  apiKeyHint2: string | null
   updatedAt: string | null
 }
 
@@ -38,8 +41,11 @@ export default function Dashboard() {
   const [whatsappQrPreview, setWhatsappQrPreview] = useState<string | null>(null)
 
   const [llmProviderId, setLlmProviderId] = useState('openrouter')
-  const [llmModel, setLlmModel] = useState('')
+  const [llmModel, setLlmModel] = useState('z-ai/glm-4.5-air:free')
   const [llmApiKey, setLlmApiKey] = useState('')
+  const [llm2ProviderId, setLlm2ProviderId] = useState('openrouter')
+  const [llm2Model, setLlm2Model] = useState('nvidia/nemotron-3-super-120b-a12b:free')
+  const [llm2ApiKey, setLlm2ApiKey] = useState('')
   const [llmSaving, setLlmSaving] = useState(false)
   const [llmError, setLlmError] = useState<string | null>(null)
   const llmInitRef = useRef(false)
@@ -56,7 +62,7 @@ export default function Dashboard() {
   ]
 
   const modelSuggestions: Record<string, string[]> = {
-    openrouter: ['openai/gpt-4.1-mini', 'openai/gpt-4.1', 'anthropic/claude-3.7-sonnet', 'google/gemini-2.0-flash'],
+    openrouter: ['z-ai/glm-4.5-air:free', 'nvidia/nemotron-3-super-120b-a12b:free', 'openai/gpt-4.1-mini', 'openai/gpt-4.1', 'anthropic/claude-3.7-sonnet', 'google/gemini-2.0-flash'],
     openai: ['gpt-4.1-mini', 'gpt-4.1', 'gpt-4o-mini'],
     anthropic: ['claude-3-7-sonnet-latest', 'claude-3-5-sonnet-latest', 'claude-3-5-haiku-latest'],
     gemini: ['gemini-2.0-flash', 'gemini-2.0-pro', 'gemini-1.5-flash'],
@@ -70,9 +76,13 @@ export default function Dashboard() {
         providerId: llmProviderId.trim(),
         model: llmModel.trim() || null,
         apiKey: llmApiKey.trim(),
+        providerId2: llm2ProviderId.trim() || null,
+        model2: llm2Model.trim() || null,
+        apiKey2: llm2ApiKey.trim() || undefined,
       })
       setOpenclaw(out)
       setLlmApiKey('')
+      setLlm2ApiKey('')
     } catch (e) {
       setLlmError(String((e as Error).message || 'ERROR'))
     } finally {
@@ -97,7 +107,9 @@ export default function Dashboard() {
         setWhatsappQrPreview(p.data.whatsappQrDataUrl)
         if (!llmInitRef.current) {
           setLlmProviderId(o.providerId || 'openrouter')
-          setLlmModel(o.model || '')
+          setLlmModel(o.model || 'z-ai/glm-4.5-air:free')
+          setLlm2ProviderId(o.providerId2 || 'openrouter')
+          setLlm2Model(o.model2 || 'nvidia/nemotron-3-super-120b-a12b:free')
           llmInitRef.current = true
         }
       } catch (e) {
@@ -208,94 +220,124 @@ export default function Dashboard() {
 
           <div className="mt-5 grid grid-cols-1 gap-4">
             <div className="rounded-xl border border-slate-200 bg-white p-4">
-              <div className="text-base font-semibold">1. 選擇智能體（OpenClaw / Hermes）</div>
-              <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="text-base text-slate-600">目前：{profile?.agentType === 'hermes' ? 'Hermes Agent' : 'OpenClaw Agent'}</div>
-                <div className="flex gap-2">
-                  <button
-                    disabled={saveState.savingAgent}
-                    onClick={() => void saveAgentType('openclaw')}
-                    className={`rounded-lg px-4 py-2 text-base font-semibold ${
-                      profile?.agentType !== 'hermes' ? 'bg-emerald-600 text-white' : 'border border-slate-200 bg-white text-slate-700'
-                    }`}
-                  >
-                    OpenClaw Agent
-                  </button>
-                  <button
-                    disabled={saveState.savingAgent}
-                    onClick={() => void saveAgentType('hermes')}
-                    className={`rounded-lg px-4 py-2 text-base font-semibold ${
-                      profile?.agentType === 'hermes' ? 'bg-emerald-600 text-white' : 'border border-slate-200 bg-white text-slate-700'
-                    }`}
-                  >
-                    Hermes Agent
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <div className="rounded-xl border border-slate-200 bg-white p-4">
-              <div className="text-base font-semibold">2. 請填寫你的 LLM AI 供應商、Model 名和 API Token</div>
-              <div className="mt-2 text-sm text-slate-600">LLM 設定</div>
+              <div className="text-base font-semibold">1. LLM AI 設定（首選 + 次選模型）</div>
               <div className="mt-1 text-sm text-slate-500">每個登入用戶各自保存。API key 儲存後不再顯示。</div>
-              <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="text-base text-slate-600">
+
+              <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <div className="text-sm font-semibold text-slate-700">首選模型</div>
+                <div className="mt-1 text-xs text-slate-500">
                   狀態：
                   {openclaw?.configured ? (
                     <span>
-                      已設定（{openclaw.providerId || 'unknown'}{openclaw.model ? ` / ${openclaw.model}` : ''}
+                      已設定（{openclaw.providerId || 'openrouter'}{openclaw.model ? ` / ${openclaw.model}` : ''}
                       {openclaw.apiKeyHint ? ` / ${openclaw.apiKeyHint}` : ''}）
                     </span>
                   ) : (
                     <span>尚未設定</span>
                   )}
                 </div>
+                <div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-3">
+                  <div>
+                    <div className="text-xs text-slate-600">供應商</div>
+                    <select
+                      value={llmProviderId}
+                      onChange={(e) => {
+                        setLlmProviderId(e.target.value)
+                        setLlmModel('')
+                      }}
+                      className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 focus:outline-none"
+                    >
+                      {providerOptions.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <div className="text-xs text-slate-600">模型名</div>
+                    <input
+                      value={llmModel}
+                      onChange={(e) => setLlmModel(e.target.value)}
+                      list="llm-model-suggestions"
+                      placeholder="例如：z-ai/glm-4.5-air:free"
+                      className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none"
+                    />
+                    <datalist id="llm-model-suggestions">
+                      {(modelSuggestions[llmProviderId] || []).map((m) => (
+                        <option key={m} value={m} />
+                      ))}
+                    </datalist>
+                  </div>
+                  <div>
+                    <div className="text-xs text-slate-600">API key（儲存後不再顯示）</div>
+                    <input
+                      value={llmApiKey}
+                      onChange={(e) => setLlmApiKey(e.target.value)}
+                      type="password"
+                      placeholder={openclaw?.apiKeyHint ? `目前已設定：${openclaw.apiKeyHint}` : '貼上你的 API key'}
+                      className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none"
+                    />
+                  </div>
+                </div>
               </div>
 
-              <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
-                <div>
-                  <div className="text-xs text-slate-600">模型公司</div>
-                  <select
-                    value={llmProviderId}
-                    onChange={(e) => {
-                      setLlmProviderId(e.target.value)
-                      setLlmModel('')
-                    }}
-                    className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 focus:outline-none"
-                  >
-                    {providerOptions.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.label}
-                      </option>
-                    ))}
-                  </select>
+              <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <div className="text-sm font-semibold text-slate-700">次選模型</div>
+                <div className="mt-1 text-xs text-slate-500">
+                  狀態：
+                  {openclaw?.providerId2 ? (
+                    <span>
+                      已設定（{openclaw.providerId2}{openclaw.model2 ? ` / ${openclaw.model2}` : ''}
+                      {openclaw.apiKeyHint2 ? ` / ${openclaw.apiKeyHint2}` : ''}）
+                    </span>
+                  ) : (
+                    <span>尚未設定</span>
+                  )}
                 </div>
-
-                <div>
-                  <div className="text-xs text-slate-600">模型名</div>
-                  <input
-                    value={llmModel}
-                    onChange={(e) => setLlmModel(e.target.value)}
-                    list="llm-model-suggestions"
-                    placeholder="例如：gpt-4.1-mini"
-                    className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none"
-                  />
-                  <datalist id="llm-model-suggestions">
-                    {(modelSuggestions[llmProviderId] || []).map((m) => (
-                      <option key={m} value={m} />
-                    ))}
-                  </datalist>
-                </div>
-
-                <div>
-                  <div className="text-xs text-slate-600">API key（儲存後不再顯示）</div>
-                  <input
-                    value={llmApiKey}
-                    onChange={(e) => setLlmApiKey(e.target.value)}
-                    type="password"
-                    placeholder={openclaw?.apiKeyHint ? `目前已設定：${openclaw.apiKeyHint}` : '貼上你的 API key'}
-                    className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none"
-                  />
+                <div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-3">
+                  <div>
+                    <div className="text-xs text-slate-600">供應商</div>
+                    <select
+                      value={llm2ProviderId}
+                      onChange={(e) => {
+                        setLlm2ProviderId(e.target.value)
+                        setLlm2Model('')
+                      }}
+                      className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 focus:outline-none"
+                    >
+                      {providerOptions.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <div className="text-xs text-slate-600">模型名</div>
+                    <input
+                      value={llm2Model}
+                      onChange={(e) => setLlm2Model(e.target.value)}
+                      list="llm-model-suggestions-2"
+                      placeholder="例如：nvidia/nemotron-3-super-120b-a12b:free"
+                      className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none"
+                    />
+                    <datalist id="llm-model-suggestions-2">
+                      {(modelSuggestions[llm2ProviderId] || []).map((m) => (
+                        <option key={m} value={m} />
+                      ))}
+                    </datalist>
+                  </div>
+                  <div>
+                    <div className="text-xs text-slate-600">API key（儲存後不再顯示）</div>
+                    <input
+                      value={llm2ApiKey}
+                      onChange={(e) => setLlm2ApiKey(e.target.value)}
+                      type="password"
+                      placeholder={openclaw?.apiKeyHint2 ? `目前已設定：${openclaw.apiKeyHint2}` : '貼上你的 API key（可與首選相同）'}
+                      className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none"
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -317,7 +359,7 @@ export default function Dashboard() {
             </div>
 
             <div className="rounded-xl border border-slate-200 bg-white p-4">
-              <div className="text-base font-semibold">3. 請掃描 WhatsApp QR 碼</div>
+              <div className="text-base font-semibold">2. 請掃描 WhatsApp QR 碼</div>
               <div className="mt-2 text-base text-slate-600">QR 碼請從 OpenClaw 的 WhatsApp channel 導出。</div>
               {whatsappQrPreview ? (
                 <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
@@ -329,7 +371,7 @@ export default function Dashboard() {
             </div>
 
             <div className="rounded-xl border border-slate-200 bg-white p-4">
-              <div className="text-base font-semibold">4. 請填寫你的 Telegram Robot 認證碼</div>
+              <div className="text-base font-semibold">3. 請填寫你的 Telegram Robot 認證碼</div>
               <div className="mt-2 text-base text-slate-600">BotFather 生成的 token（儲存後不會再顯示）。</div>
               <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center">
                 <input
@@ -354,7 +396,7 @@ export default function Dashboard() {
             </div>
 
             <div className="rounded-xl border border-slate-200 bg-white p-4">
-              <div className="text-base font-semibold">5. 請填寫你的 Google 認證碼</div>
+              <div className="text-base font-semibold">4. 請填寫你的 Google 認證碼</div>
               <div className="mt-2 text-base text-slate-600">這一步是 Google OAuth 授權。</div>
               <GoogleOAuthSetupInline />
             </div>

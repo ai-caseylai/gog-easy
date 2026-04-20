@@ -18,6 +18,7 @@
     "@novnc/novnc": "^1.6.0",
     "@supabase/supabase-js": "^2.49.1",
     "@xterm/addon-fit": "^0.11.0",
+    "@xterm/addon-web-links": "^0.12.0",
     "@xterm/xterm": "^6.0.0",
     "clsx": "^2.1.1",
     "cors": "^2.8.5",
