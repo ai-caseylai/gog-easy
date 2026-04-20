@@ -537,3 +537,120 @@ export async function incrementOtpAttempts(id: string): Promise<void> {
   const { error } = await sb.rpc('increment_otp_attempts', { otp_id: id })
   if (error) throw new Error('DB increment otp failed')
 }
+
+// ── agent_registrations ──
+
+export type DbAgentRegistration = {
+  id: string
+  phone: string
+  domain: string
+  qr_text: string | null
+  qr_updated_at: string | null
+  llm_primary: Record<string, unknown>
+  llm_secondary: Record<string, unknown>
+  ssh_host: string | null
+  ssh_port: number
+  ssh_user: string
+  ssh_password_encrypted: string | null
+  status: 'active' | 'inactive'
+  last_heartbeat: string | null
+  created_at: string
+  updated_at: string
+}
+
+export async function upsertAgentRegistration(params: {
+  phone: string
+  domain: string
+  qr_text?: string
+  ssh_host?: string
+  ssh_port?: number
+  ssh_user?: string
+  ssh_password_encrypted?: string
+}): Promise<DbAgentRegistration> {
+  const sb = supabaseAdmin()
+  const update: Record<string, unknown> = {
+    phone: params.phone,
+    domain: params.domain,
+    updated_at: new Date().toISOString(),
+  }
+  if (params.qr_text !== undefined) {
+    update.qr_text = params.qr_text
+    update.qr_updated_at = new Date().toISOString()
+  }
+  if (params.ssh_host !== undefined) update.ssh_host = params.ssh_host
+  if (params.ssh_port !== undefined) update.ssh_port = params.ssh_port
+  if (params.ssh_user !== undefined) update.ssh_user = params.ssh_user
+  if (params.ssh_password_encrypted !== undefined) update.ssh_password_encrypted = params.ssh_password_encrypted
+  const { data, error } = await sb
+    .from('agent_registrations')
+    .upsert(update, { onConflict: 'phone,domain' })
+    .select()
+    .single()
+  if (error) throw new Error(`DB upsert agent_reg failed: ${error.message}`)
+  return data as DbAgentRegistration
+}
+
+export async function getAgentByPhoneDomain(phone: string, domain: string): Promise<DbAgentRegistration | null> {
+  const sb = supabaseAdmin()
+  const { data, error } = await sb
+    .from('agent_registrations')
+    .select('*')
+    .eq('phone', phone)
+    .eq('domain', domain)
+    .maybeSingle()
+  if (error) throw new Error(`DB get agent failed: ${error.message}`)
+  return (data as DbAgentRegistration) ?? null
+}
+
+export async function listAgentRegistrations(): Promise<DbAgentRegistration[]> {
+  const sb = supabaseAdmin()
+  const { data, error } = await sb
+    .from('agent_registrations')
+    .select('*')
+    .order('updated_at', { ascending: false })
+  if (error) throw new Error(`DB list agents failed: ${error.message}`)
+  return (data as DbAgentRegistration[]) ?? []
+}
+
+export async function getAgentRegistration(id: string): Promise<DbAgentRegistration | null> {
+  const sb = supabaseAdmin()
+  const { data, error } = await sb
+    .from('agent_registrations')
+    .select('*')
+    .eq('id', id)
+    .maybeSingle()
+  if (error) throw new Error(`DB get agent failed: ${error.message}`)
+  return (data as DbAgentRegistration) ?? null
+}
+
+export async function updateAgentRegistration(id: string, updates: Record<string, unknown>): Promise<DbAgentRegistration> {
+  const sb = supabaseAdmin()
+  const { data, error } = await sb
+    .from('agent_registrations')
+    .update({ ...updates, updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .select()
+    .single()
+  if (error) throw new Error(`DB update agent failed: ${error.message}`)
+  return data as DbAgentRegistration
+}
+
+export async function updateAgentHeartbeat(phone: string, domain: string): Promise<void> {
+  const sb = supabaseAdmin()
+  const { error } = await sb
+    .from('agent_registrations')
+    .update({ last_heartbeat: new Date().toISOString(), updated_at: new Date().toISOString() })
+    .eq('phone', phone)
+    .eq('domain', domain)
+  if (error) throw new Error(`DB heartbeat failed: ${error.message}`)
+}
+
+export async function updateAgentQr(phone: string, domain: string, qrText: string): Promise<void> {
+  const sb = supabaseAdmin()
+  const { error } = await sb
+    .from('agent_registrations')
+    .update({ qr_text: qrText, qr_updated_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+    .eq('phone', phone)
+    .eq('domain', domain)
+  if (error) throw new Error(`DB update QR failed: ${error.message}`)
+}

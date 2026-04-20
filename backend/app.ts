@@ -24,6 +24,8 @@ import profileRoutes from './routes/profile.js'
 import adminAuthRoutes from './routes/adminAuth.js'
 import adminSshRoutes from './routes/adminSsh.js'
 import adminUsersRoutes from './routes/adminUsers.js'
+import agentRegistryRoutes from './routes/agentRegistry.js'
+import adminAgentsRoutes from './routes/adminAgents.js'
 
 // load env
 dotenv.config()
@@ -48,6 +50,8 @@ app.use('/api/profile', profileRoutes)
 app.use('/api/admin/auth', adminAuthRoutes)
 app.use('/api/admin', adminSshRoutes)
 app.use('/api/admin', adminUsersRoutes)
+app.use('/api/agents', agentRegistryRoutes)
+app.use('/api/admin/agents', adminAgentsRoutes)
 
 app.use('/v1', v1Routes)
 
