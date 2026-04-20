@@ -1,10 +1,10 @@
 import { create } from 'zustand'
-import { apiGet } from '@/utils/api'
+import { apiGet } from '../utils/api'
 
 type MeState = {
   loading: boolean
   error: string | null
-  user: { id: string; email: string; displayName: string | null } | null
+  user: { id: string; email: string | null; phone: string | null; authProvider: string; displayName: string | null } | null
   google: { status: string; scopes: { gmailReadonly: boolean; calendarReadonly: boolean; contactsReadonly: boolean } } | null
   apiKeyPrefix: string | null
   refresh: () => Promise<void>
@@ -21,7 +21,7 @@ export const useMeStore = create<MeState>((set) => ({
     set({ loading: true, error: null })
     try {
       const data = await apiGet<{
-        user: { id: string; email: string; displayName: string | null }
+        user: { id: string; email: string | null; phone: string | null; authProvider: string; displayName: string | null }
         google: { status: string; scopes: { gmailReadonly: boolean; calendarReadonly: boolean; contactsReadonly: boolean } }
         apiKey: { prefix: string } | null
       }>('/api/me')
@@ -37,4 +37,3 @@ export const useMeStore = create<MeState>((set) => ({
   },
   clear: () => set({ user: null, google: null, apiKeyPrefix: null, error: null, loading: false }),
 }))
-

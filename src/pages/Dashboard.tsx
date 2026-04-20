@@ -1,72 +1,148 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { apiGet, apiPost } from '@/utils/api'
-import { useMeStore } from '@/stores/useMeStore'
-import { Copy, KeyRound, Link2, RefreshCcw, ShieldAlert, Unlink, Mail, Calendar, Contact } from 'lucide-react'
+import { RefreshCcw, ShieldAlert } from 'lucide-react'
+import MainTabs from '../components/MainTabs'
+import GoogleOAuthSetupInline from '../components/GoogleOAuthSetupInline'
+import { apiGet, apiPost } from '../utils/api'
+import { useMeStore } from '../stores/useMeStore'
 
-type TabKey = 'gmail' | 'calendar' | 'contacts'
+type ProfileData = {
+  agentType: 'openclaw' | 'hermes' | null
+  whatsappQrDataUrl: string | null
+  telegramTokenHint: string | null
+  updatedAt: string | null
+}
 
-function maskKeyPrefix(prefix: string) {
-  if (prefix.length <= 6) return prefix
-  return `${prefix}****`
+type OpenClawStatus = {
+  configured: boolean
+  providerId: string | null
+  model: string | null
+  apiKeyHint: string | null
+  updatedAt: string | null
 }
 
 export default function Dashboard() {
   const nav = useNavigate()
-  const { loading, error, user, google, apiKeyPrefix, refresh } = useMeStore()
-  const [fullKey, setFullKey] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<TabKey>('gmail')
-  const [testLoading, setTestLoading] = useState(false)
-  const [testError, setTestError] = useState<string | null>(null)
-  const [testData, setTestData] = useState<unknown>(null)
+  const { loading, error, user, refresh } = useMeStore()
+
+  const [profile, setProfile] = useState<ProfileData | null>(null)
+  const [openclaw, setOpenclaw] = useState<OpenClawStatus | null>(null)
+  const [extrasError, setExtrasError] = useState<string | null>(null)
+
+  const [saveState, setSaveState] = useState({
+    savingAgent: false,
+    savingTelegram: false,
+  })
+
+  const [telegramToken, setTelegramToken] = useState('')
+  const [whatsappQrPreview, setWhatsappQrPreview] = useState<string | null>(null)
+
+  const [llmProviderId, setLlmProviderId] = useState('openrouter')
+  const [llmModel, setLlmModel] = useState('')
+  const [llmApiKey, setLlmApiKey] = useState('')
+  const [llmSaving, setLlmSaving] = useState(false)
+  const [llmError, setLlmError] = useState<string | null>(null)
+  const llmInitRef = useRef(false)
 
   useEffect(() => {
-    refresh()
+    void refresh()
   }, [refresh])
 
-  const connected = google?.status === 'connected'
+  const providerOptions: { id: string; label: string }[] = [
+    { id: 'openrouter', label: 'OpenRouter' },
+    { id: 'openai', label: 'OpenAI' },
+    { id: 'anthropic', label: 'Anthropic Claude' },
+    { id: 'gemini', label: 'Google Gemini' },
+  ]
 
-  const scopes = useMemo(() => {
-    const s = google?.scopes
-    return {
-      gmail: Boolean(s?.gmailReadonly),
-      calendar: Boolean(s?.calendarReadonly),
-      contacts: Boolean(s?.contactsReadonly),
-    }
-  }, [google?.scopes])
-
-  async function rotateKey() {
-    const out = await apiPost<{ apiKey: { key: string; prefix: string } }>('/api/api-keys/rotate')
-    setFullKey(out.apiKey.key)
-    await refresh()
+  const modelSuggestions: Record<string, string[]> = {
+    openrouter: ['openai/gpt-4.1-mini', 'openai/gpt-4.1', 'anthropic/claude-3.7-sonnet', 'google/gemini-2.0-flash'],
+    openai: ['gpt-4.1-mini', 'gpt-4.1', 'gpt-4o-mini'],
+    anthropic: ['claude-3-7-sonnet-latest', 'claude-3-5-sonnet-latest', 'claude-3-5-haiku-latest'],
+    gemini: ['gemini-2.0-flash', 'gemini-2.0-pro', 'gemini-1.5-flash'],
   }
 
-  async function revoke() {
-    await apiPost('/api/connections/google/revoke')
-    setFullKey(null)
-    await refresh()
-  }
-
-  async function runTest() {
-    setTestLoading(true)
-    setTestError(null)
-    setTestData(null)
+  async function saveLlm() {
+    setLlmSaving(true)
+    setLlmError(null)
     try {
-      const path = activeTab === 'gmail' ? '/api/test/gmail' : activeTab === 'calendar' ? '/api/test/calendar' : '/api/test/contacts'
-      const out = await apiGet<Record<string, unknown>>(path)
-      setTestData(out)
+      const out = await apiPost<OpenClawStatus>('/api/openclaw/settings', {
+        providerId: llmProviderId.trim(),
+        model: llmModel.trim() || null,
+        apiKey: llmApiKey.trim(),
+      })
+      setOpenclaw(out)
+      setLlmApiKey('')
     } catch (e) {
-      setTestError(String((e as Error).message || 'ERROR'))
+      setLlmError(String((e as Error).message || 'ERROR'))
     } finally {
-      setTestLoading(false)
+      setLlmSaving(false)
+    }
+  }
+
+
+  useEffect(() => {
+    let cancelled = false
+    async function loadExtras() {
+      if (!user) return
+      setExtrasError(null)
+      try {
+        const [p, o] = await Promise.all([
+          apiGet<{ data: ProfileData }>('/api/profile'),
+          apiGet<OpenClawStatus>('/api/openclaw/settings'),
+        ])
+        if (cancelled) return
+        setProfile(p.data)
+        setOpenclaw(o)
+        setWhatsappQrPreview(p.data.whatsappQrDataUrl)
+        if (!llmInitRef.current) {
+          setLlmProviderId(o.providerId || 'openrouter')
+          setLlmModel(o.model || '')
+          llmInitRef.current = true
+        }
+      } catch (e) {
+        if (!cancelled) setExtrasError(String((e as Error).message || 'ERROR'))
+      }
+    }
+    void loadExtras()
+    return () => {
+      cancelled = true
+    }
+  }, [user])
+
+
+  async function saveAgentType(next: 'openclaw' | 'hermes') {
+    setSaveState((s) => ({ ...s, savingAgent: true }))
+    setExtrasError(null)
+    try {
+      const out = await apiPost<{ data: ProfileData }>('/api/profile', { agentType: next })
+      setProfile(out.data)
+    } catch (e) {
+      setExtrasError(String((e as Error).message || 'ERROR'))
+    } finally {
+      setSaveState((s) => ({ ...s, savingAgent: false }))
+    }
+  }
+
+  async function saveTelegram() {
+    setSaveState((s) => ({ ...s, savingTelegram: true }))
+    setExtrasError(null)
+    try {
+      const out = await apiPost<{ data: ProfileData }>('/api/profile', { telegramToken: telegramToken.trim() })
+      setProfile(out.data)
+      setTelegramToken('')
+    } catch (e) {
+      setExtrasError(String((e as Error).message || 'ERROR'))
+    } finally {
+      setSaveState((s) => ({ ...s, savingTelegram: false }))
     }
   }
 
   if (loading && !user) {
     return (
-      <div className="min-h-screen bg-[#0B1220] text-[#EAF0FF]">
+      <div className="min-h-screen bg-slate-50 text-slate-900">
         <div className="mx-auto max-w-[1040px] px-4 py-14">
-          <div className="h-32 animate-pulse rounded-2xl border border-[#24324D] bg-[#111B2E]" />
+          <div className="h-32 animate-pulse rounded-2xl border border-slate-200 bg-white" />
         </div>
       </div>
     )
@@ -74,29 +150,29 @@ export default function Dashboard() {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-[#0B1220] text-[#EAF0FF]">
+      <div className="min-h-screen bg-slate-50 text-slate-900">
         <div className="mx-auto max-w-[560px] px-4 py-16">
-          <div className="rounded-2xl border border-[#24324D] bg-[#111B2E] p-8">
+          <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
             <div className="flex items-start gap-4">
-              <ShieldAlert className="mt-1 h-6 w-6 text-[#F5A623]" />
+              <ShieldAlert className="mt-1 h-6 w-6 text-amber-600" />
               <div>
                 <div className="text-lg font-semibold">尚未登入</div>
-                <div className="mt-1 text-sm text-[#A9B7D0]">請先完成 Google 授權再回來。</div>
+                <div className="mt-1 text-sm text-slate-600">請先用手機登入。</div>
                 <div className="mt-6 flex flex-col gap-3 sm:flex-row">
                   <a
-                    href="/api/oauth/google/start"
-                    className="inline-flex items-center justify-center rounded-xl bg-[#4F8CFF] px-5 py-3 text-sm font-semibold text-[#0B1220] hover:bg-[#3B79F0]"
+                    href="/login"
+                    className="inline-flex items-center justify-center rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white hover:bg-emerald-700"
                   >
-                    用 Google 授權
+                    用手機登入
                   </a>
                   <button
                     onClick={() => nav('/', { replace: true })}
-                    className="inline-flex items-center justify-center rounded-xl border border-[#24324D] bg-transparent px-5 py-3 text-sm font-semibold text-[#EAF0FF] hover:bg-white/5"
+                    className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
                   >
                     回首頁
                   </button>
                 </div>
-                {error ? <div className="mt-4 text-xs text-[#A9B7D0]">{error}</div> : null}
+                {error ? <div className="mt-4 text-xs text-slate-600">{error}</div> : null}
               </div>
             </div>
           </div>
@@ -106,178 +182,186 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0B1220] text-[#EAF0FF]">
+    <div className="min-h-screen bg-slate-50 text-slate-900">
       <div className="mx-auto max-w-[1040px] px-4 py-10">
-        <div className="mb-8 flex items-center justify-between">
+        <MainTabs />
+
+        <div className="mt-8 mb-6 flex items-center justify-between">
           <div>
             <div className="text-xl font-semibold">控制台</div>
-            <div className="mt-1 text-sm text-[#A9B7D0]">已連結：{user.email}</div>
+            <div className="mt-1 text-sm text-slate-600">已登入：{user.phone || user.email || user.id}</div>
           </div>
           <button
-            onClick={() => refresh()}
-            className="inline-flex items-center gap-2 rounded-xl border border-[#24324D] px-4 py-2 text-sm font-semibold hover:bg-white/5"
+            onClick={() => void refresh()}
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
           >
             <RefreshCcw className="h-4 w-4" />
             重新整理
           </button>
         </div>
 
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <div className="rounded-2xl border border-[#24324D] bg-[#111B2E] p-6">
-            <div className="flex items-center gap-2 text-sm font-semibold">
-              <Link2 className="h-4 w-4 text-[#4F8CFF]" />
-              連線狀態
-              <span
-                className={`ml-2 rounded-full px-2 py-0.5 text-xs ${
-                  connected ? 'bg-[#2ECC71]/15 text-[#2ECC71]' : 'bg-white/10 text-[#A9B7D0]'
-                }`}
-              >
-                {connected ? 'Connected' : 'Disconnected'}
-              </span>
-            </div>
+        <div className="mb-6 rounded-2xl bg-white p-6 shadow-sm">
+          <div className="text-lg font-semibold">簡易設定菜單</div>
+          <div className="mt-1 text-base text-slate-600">照順序做完，你的智能體就能正常運作。</div>
 
-            <div className="mt-4 grid grid-cols-1 gap-3">
-              <div className="flex items-center justify-between rounded-xl border border-[#24324D] bg-black/10 px-4 py-3">
-                <div className="flex items-center gap-2 text-sm">
-                  <Mail className="h-4 w-4 text-[#A9B7D0]" />
-                  Gmail（可讀寫）
+          {extrasError ? <div className="mt-4 text-sm text-rose-700">{extrasError}</div> : null}
+
+          <div className="mt-5 grid grid-cols-1 gap-4">
+            <div className="rounded-xl border border-slate-200 bg-white p-4">
+              <div className="text-base font-semibold">1. 選擇智能體（OpenClaw / Hermes）</div>
+              <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="text-base text-slate-600">目前：{profile?.agentType === 'hermes' ? 'Hermes Agent' : 'OpenClaw Agent'}</div>
+                <div className="flex gap-2">
+                  <button
+                    disabled={saveState.savingAgent}
+                    onClick={() => void saveAgentType('openclaw')}
+                    className={`rounded-lg px-4 py-2 text-base font-semibold ${
+                      profile?.agentType !== 'hermes' ? 'bg-emerald-600 text-white' : 'border border-slate-200 bg-white text-slate-700'
+                    }`}
+                  >
+                    OpenClaw Agent
+                  </button>
+                  <button
+                    disabled={saveState.savingAgent}
+                    onClick={() => void saveAgentType('hermes')}
+                    className={`rounded-lg px-4 py-2 text-base font-semibold ${
+                      profile?.agentType === 'hermes' ? 'bg-emerald-600 text-white' : 'border border-slate-200 bg-white text-slate-700'
+                    }`}
+                  >
+                    Hermes Agent
+                  </button>
                 </div>
-                <div className={`text-xs ${scopes.gmail ? 'text-[#2ECC71]' : 'text-[#A9B7D0]'}`}>{scopes.gmail ? '已啟用' : '未啟用'}</div>
-              </div>
-              <div className="flex items-center justify-between rounded-xl border border-[#24324D] bg-black/10 px-4 py-3">
-                <div className="flex items-center gap-2 text-sm">
-                  <Calendar className="h-4 w-4 text-[#A9B7D0]" />
-                  Calendar（可讀寫）
-                </div>
-                <div className={`text-xs ${scopes.calendar ? 'text-[#2ECC71]' : 'text-[#A9B7D0]'}`}>{scopes.calendar ? '已啟用' : '未啟用'}</div>
-              </div>
-              <div className="flex items-center justify-between rounded-xl border border-[#24324D] bg-black/10 px-4 py-3">
-                <div className="flex items-center gap-2 text-sm">
-                  <Contact className="h-4 w-4 text-[#A9B7D0]" />
-                  Contacts（可讀寫）
-                </div>
-                <div className={`text-xs ${scopes.contacts ? 'text-[#2ECC71]' : 'text-[#A9B7D0]'}`}>{scopes.contacts ? '已啟用' : '未啟用'}</div>
               </div>
             </div>
 
-            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-              <a
-                href="/api/oauth/google/start"
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#4F8CFF] px-5 py-3 text-sm font-semibold text-[#0B1220] hover:bg-[#3B79F0]"
-              >
-                <Unlink className="h-4 w-4" />
-                重新授權
-              </a>
-              <button
-                onClick={revoke}
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#24324D] px-5 py-3 text-sm font-semibold hover:bg-white/5"
-              >
-                <Unlink className="h-4 w-4" />
-                解除連線
-              </button>
-            </div>
-          </div>
-
-          <div className="rounded-2xl border border-[#24324D] bg-[#111B2E] p-6">
-            <div className="flex items-center gap-2 text-sm font-semibold">
-              <KeyRound className="h-4 w-4 text-[#4F8CFF]" />
-              OpenClaw API Key
-            </div>
-
-            <div className="mt-4 rounded-xl border border-[#24324D] bg-black/10 p-4">
-              <div className="flex items-center justify-between gap-3">
-                <div className="font-mono text-sm text-[#EAF0FF]">
-                  {apiKeyPrefix ? maskKeyPrefix(apiKeyPrefix) : '尚未建立 API Key'}
+            <div className="rounded-xl border border-slate-200 bg-white p-4">
+              <div className="text-base font-semibold">2. 請填寫你的 LLM AI 供應商、Model 名和 API Token</div>
+              <div className="mt-2 text-sm text-slate-600">LLM 設定</div>
+              <div className="mt-1 text-sm text-slate-500">每個登入用戶各自保存。API key 儲存後不再顯示。</div>
+              <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="text-base text-slate-600">
+                  狀態：
+                  {openclaw?.configured ? (
+                    <span>
+                      已設定（{openclaw.providerId || 'unknown'}{openclaw.model ? ` / ${openclaw.model}` : ''}
+                      {openclaw.apiKeyHint ? ` / ${openclaw.apiKeyHint}` : ''}）
+                    </span>
+                  ) : (
+                    <span>尚未設定</span>
+                  )}
                 </div>
+              </div>
+
+              <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
+                <div>
+                  <div className="text-xs text-slate-600">模型公司</div>
+                  <select
+                    value={llmProviderId}
+                    onChange={(e) => {
+                      setLlmProviderId(e.target.value)
+                      setLlmModel('')
+                    }}
+                    className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 focus:outline-none"
+                  >
+                    {providerOptions.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <div className="text-xs text-slate-600">模型名</div>
+                  <input
+                    value={llmModel}
+                    onChange={(e) => setLlmModel(e.target.value)}
+                    list="llm-model-suggestions"
+                    placeholder="例如：gpt-4.1-mini"
+                    className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none"
+                  />
+                  <datalist id="llm-model-suggestions">
+                    {(modelSuggestions[llmProviderId] || []).map((m) => (
+                      <option key={m} value={m} />
+                    ))}
+                  </datalist>
+                </div>
+
+                <div>
+                  <div className="text-xs text-slate-600">API key（儲存後不再顯示）</div>
+                  <input
+                    value={llmApiKey}
+                    onChange={(e) => setLlmApiKey(e.target.value)}
+                    type="password"
+                    placeholder={openclaw?.apiKeyHint ? `目前已設定：${openclaw.apiKeyHint}` : '貼上你的 API key'}
+                    className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              {llmError ? <div className="mt-3 text-sm text-rose-700">{llmError}</div> : null}
+
+              <div className="mt-4 flex items-center justify-end">
                 <button
-                  onClick={async () => {
-                    const value = fullKey || ''
-                    if (!value) return
-                    await navigator.clipboard.writeText(value)
-                  }}
-                  disabled={!fullKey}
-                  className={`inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold ${
-                    fullKey ? 'bg-white/10 hover:bg-white/15' : 'cursor-not-allowed bg-white/5 text-[#A9B7D0]'
+                  onClick={() => void saveLlm()}
+                  disabled={llmSaving || !llmProviderId.trim() || !llmApiKey.trim()}
+                  className={`inline-flex items-center justify-center rounded-xl px-6 py-3 text-sm font-semibold ${
+                    !llmSaving && llmProviderId.trim() && llmApiKey.trim()
+                      ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                      : 'cursor-not-allowed bg-slate-100 text-slate-400'
                   }`}
                 >
-                  <Copy className="h-4 w-4" />
-                  複製
+                  {llmSaving ? '儲存中…' : '儲存'}
                 </button>
               </div>
-              <div className="mt-3 text-xs text-[#A9B7D0]">
-                安全起見：完整 API Key 只會在「剛輪替」後顯示，請立即複製保存。
-              </div>
-              {fullKey ? (
-                <div className="mt-4 rounded-xl border border-[#24324D] bg-[#0B1220] p-3">
-                  <div className="text-xs text-[#A9B7D0]">完整 API Key（只顯示一次）</div>
-                  <div className="mt-2 break-all font-mono text-sm">{fullKey}</div>
+            </div>
+
+            <div className="rounded-xl border border-slate-200 bg-white p-4">
+              <div className="text-base font-semibold">3. 請掃描 WhatsApp QR 碼</div>
+              <div className="mt-2 text-base text-slate-600">QR 碼請從 OpenClaw 的 WhatsApp channel 導出。</div>
+              {whatsappQrPreview ? (
+                <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <img src={whatsappQrPreview} alt="WhatsApp QR" className="mx-auto max-h-[260px] mix-blend-multiply" />
                 </div>
-              ) : null}
+              ) : (
+                <div className="mt-3 text-sm text-slate-500">尚未顯示 QR 碼</div>
+              )}
             </div>
 
-            <div className="mt-5 flex flex-col gap-3 sm:flex-row">
-              <button
-                onClick={rotateKey}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#4F8CFF] px-5 py-3 text-sm font-semibold text-[#0B1220] hover:bg-[#3B79F0]"
-              >
-                <KeyRound className="h-4 w-4" />
-                輪替 API Key
-              </button>
-              <a
-                href="/"
-                className="inline-flex items-center justify-center rounded-xl border border-[#24324D] px-5 py-3 text-sm font-semibold hover:bg-white/5"
-              >
-                回首頁
-              </a>
-            </div>
-          </div>
-
-          <div className="rounded-2xl border border-[#24324D] bg-[#111B2E] p-6 lg:col-span-2">
-            <div className="mb-4 text-sm font-semibold">最小測試工具</div>
-            <div className="flex flex-wrap gap-2">
-              <button
-                onClick={() => setActiveTab('gmail')}
-                className={`rounded-xl px-4 py-2 text-sm font-semibold ${activeTab === 'gmail' ? 'bg-[#4F8CFF] text-[#0B1220]' : 'bg-white/10 hover:bg-white/15'}`}
-              >
-                Gmail
-              </button>
-              <button
-                onClick={() => setActiveTab('calendar')}
-                className={`rounded-xl px-4 py-2 text-sm font-semibold ${activeTab === 'calendar' ? 'bg-[#4F8CFF] text-[#0B1220]' : 'bg-white/10 hover:bg-white/15'}`}
-              >
-                Calendar
-              </button>
-              <button
-                onClick={() => setActiveTab('contacts')}
-                className={`rounded-xl px-4 py-2 text-sm font-semibold ${activeTab === 'contacts' ? 'bg-[#4F8CFF] text-[#0B1220]' : 'bg-white/10 hover:bg-white/15'}`}
-              >
-                Contacts
-              </button>
-              <div className="flex-1" />
-              <button
-                onClick={runTest}
-                disabled={!connected || testLoading}
-                className={`rounded-xl px-5 py-2 text-sm font-semibold ${
-                  connected && !testLoading
-                    ? 'bg-white/10 hover:bg-white/15'
-                    : 'cursor-not-allowed bg-white/5 text-[#A9B7D0]'
-                }`}
-              >
-                {testLoading ? '測試中…' : '測試呼叫'}
-              </button>
+            <div className="rounded-xl border border-slate-200 bg-white p-4">
+              <div className="text-base font-semibold">4. 請填寫你的 Telegram Robot 認證碼</div>
+              <div className="mt-2 text-base text-slate-600">BotFather 生成的 token（儲存後不會再顯示）。</div>
+              <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center">
+                <input
+                  value={telegramToken}
+                  onChange={(e) => setTelegramToken(e.target.value)}
+                  placeholder={profile?.telegramTokenHint ? `目前已設定：${profile.telegramTokenHint}` : '例如：123456:ABC-DEF...'}
+                  type="password"
+                  className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2 text-base text-slate-900 placeholder:text-slate-400 outline-none"
+                />
+                <button
+                  disabled={saveState.savingTelegram || telegramToken.trim().length === 0}
+                  onClick={() => void saveTelegram()}
+                  className={`rounded-lg px-4 py-2 text-base font-semibold ${
+                    telegramToken.trim().length > 0
+                      ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                      : 'cursor-not-allowed border border-slate-200 bg-slate-50 text-slate-400'
+                  }`}
+                >
+                  {saveState.savingTelegram ? '儲存中…' : '儲存'}
+                </button>
+              </div>
             </div>
 
-            {testError ? <div className="mt-4 text-sm text-[#FF5A5F]">{testError}</div> : null}
-            {testData ? (
-              <pre className="mt-4 max-h-[320px] overflow-auto rounded-xl border border-[#24324D] bg-[#0B1220] p-4 text-xs text-[#A9B7D0]">
-                {JSON.stringify(testData, null, 2)}
-              </pre>
-            ) : (
-              <div className="mt-4 text-sm text-[#A9B7D0]">點「測試呼叫」後會顯示結果摘要。</div>
-            )}
+            <div className="rounded-xl border border-slate-200 bg-white p-4">
+              <div className="text-base font-semibold">5. 請填寫你的 Google 認證碼</div>
+              <div className="mt-2 text-base text-slate-600">這一步是 Google OAuth 授權。</div>
+              <GoogleOAuthSetupInline />
+            </div>
           </div>
         </div>
       </div>
     </div>
   )
+
 }

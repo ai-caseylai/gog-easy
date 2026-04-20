@@ -4,8 +4,8 @@ import { mustGetEnv } from '../lib/env.js'
 import { randomBase64Url, sha256Base64Url, encryptAes256Gcm } from '../lib/crypto.js'
 import { clearCookie, parseCookies, setCookie } from '../lib/cookies.js'
 import { googleOAuthClient, googleUserInfo } from '../lib/google.js'
-import { signSession, sessionCookieName } from '../lib/session.js'
-import { getGoogleConnectionByUserId, upsertGoogleConnection, upsertUser } from '../lib/repo.js'
+import { signSession, sessionCookieName, verifySession } from '../lib/session.js'
+import { getGoogleConnectionByUserId, updateUserGoogleInfo, upsertGoogleConnection, upsertUser } from '../lib/repo.js'
 
 const router = Router()
 
@@ -96,11 +96,20 @@ router.get('/callback', async (req: Request, res: Response) => {
     }
 
     const info = await googleUserInfo(accessToken)
-    const user = await upsertUser({
-      google_sub: info.sub,
-      email: info.email,
-      display_name: info.name ?? null,
-    })
+    const existingSession = cookies[sessionCookieName()]
+    const sessionPayload = existingSession ? verifySession(existingSession) : null
+    const user = sessionPayload
+      ? await updateUserGoogleInfo({
+          user_id: sessionPayload.uid,
+          google_sub: info.sub,
+          email: info.email,
+          display_name: info.name ?? null,
+        })
+      : await upsertUser({
+          google_sub: info.sub,
+          email: info.email,
+          display_name: info.name ?? null,
+        })
 
     const encryptionKey = mustGetEnv('ENCRYPTION_KEY')
     const existingConn = await getGoogleConnectionByUserId(user.id)

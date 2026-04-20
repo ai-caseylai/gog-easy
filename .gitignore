@@ -27,3 +27,4 @@ gog-easy-upload.zip
 *.sln
 *.sw?
 .vite
+.env*.local

@@ -4,11 +4,22 @@ import { getEnv } from '../lib/env.js'
 const router = Router()
 
 function appBaseUrl(): string {
-  return getEnv('APP_BASE_URL') || 'http://localhost:5173'
+  const explicit = getEnv('APP_BASE_URL')
+  if (explicit) return explicit
+  const vercelUrl = getEnv('VERCEL_URL')
+  if (vercelUrl) return `https://${vercelUrl}`
+  return 'http://localhost:5173'
 }
 
 function redirectUrl(): string {
-  return getEnv('GOOGLE_REDIRECT_URL') || 'http://localhost:3001/api/oauth/google/callback'
+  const explicit = getEnv('GOOGLE_REDIRECT_URL')
+  if (explicit) return explicit
+
+  const base = appBaseUrl().replace(/\/$/, '')
+  if (base === 'http://localhost:5173') {
+    return 'http://localhost:3001/api/oauth/google/callback'
+  }
+  return `${base}/api/oauth/google/callback`
 }
 
 router.get('/status', (req: Request, res: Response) => {
@@ -59,9 +70,8 @@ router.get('/env-required', (req: Request, res: Response) => {
 
 router.get('/redirect-uri', (req: Request, res: Response) => {
   void req
-  const base = appBaseUrl()
   const api = getEnv('GOOGLE_REDIRECT_URL')
-  const computed = `${base.replace(/\/$/, '')}/api/oauth/google/callback`
+  const computed = redirectUrl()
   res.json({
     success: true,
     configured: api || null,

@@ -15,7 +15,7 @@ router.get('/', requireSession, async (req: AuthedRequest, res: Response) => {
   const apiKeyPrefix = await getActiveApiKeyPrefix(user.id)
   res.json({
     success: true,
-    user: { id: user.id, email: user.email, displayName: user.display_name },
+    user: { id: user.id, email: user.email, phone: user.phone, authProvider: user.auth_provider, displayName: user.display_name },
     google: conn
       ? { status: conn.status, scopes: conn.scopes }
       : { status: 'disconnected', scopes: { gmailReadonly: false, calendarReadonly: false, contactsReadonly: false } },
@@ -24,4 +24,3 @@ router.get('/', requireSession, async (req: AuthedRequest, res: Response) => {
 })
 
 export default router
-

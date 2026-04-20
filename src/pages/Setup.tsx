@@ -42,9 +42,9 @@ type GeneratedSecrets = {
 
 function Card(props: { title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-2xl border border-[#24324D] bg-[#111B2E] p-6">
+    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
       <div className="text-sm font-semibold">{props.title}</div>
-      <div className="mt-3 text-sm text-[#A9B7D0]">{props.children}</div>
+      <div className="mt-3 text-sm text-slate-600">{props.children}</div>
     </div>
   )
 }
@@ -52,7 +52,7 @@ function Card(props: { title: string; children: React.ReactNode }) {
 function Pill(props: { ok: boolean; okText: string; badText: string }) {
   return (
     <span
-      className={`rounded-full px-2 py-0.5 text-xs font-semibold ${props.ok ? 'bg-[#2ECC71]/15 text-[#2ECC71]' : 'bg-[#FF5A5F]/15 text-[#FF5A5F]'}`}
+      className={`rounded-full px-2 py-0.5 text-xs font-semibold ${props.ok ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}
     >
       {props.ok ? props.okText : props.badText}
     </span>
@@ -225,16 +225,16 @@ export default function Setup() {
   }, [oauthJson, publicCfg, secrets, targetBaseUrl])
 
   return (
-    <div className="min-h-screen bg-[#0B1220] text-[#EAF0FF]">
+    <div className="min-h-screen bg-slate-50 text-slate-900">
       <div className="mx-auto max-w-[1040px] px-4 py-10">
         <div className="mb-8 flex flex-wrap items-center justify-between gap-3">
           <div>
             <div className="text-xl font-semibold">Google OAuth 設定精靈</div>
-            <div className="mt-1 text-sm text-[#A9B7D0]">把必做步驟縮到最少，照著按就能跑起授權。</div>
+            <div className="mt-1 text-sm text-slate-600">把必做步驟縮到最少，照著按就能跑起授權。</div>
           </div>
           <button
             onClick={load}
-            className="inline-flex items-center gap-2 rounded-xl border border-[#24324D] px-4 py-2 text-sm font-semibold hover:bg-white/5"
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
           >
             <RefreshCcw className="h-4 w-4" />
             重新檢查
@@ -242,11 +242,11 @@ export default function Setup() {
         </div>
 
         {state.status === 'loading' ? (
-          <div className="h-28 animate-pulse rounded-2xl border border-[#24324D] bg-[#111B2E]" />
+          <div className="h-28 animate-pulse rounded-2xl border border-slate-200 bg-white" />
         ) : state.status === 'error' ? (
-          <div className="rounded-2xl border border-[#24324D] bg-[#111B2E] p-6">
-            <div className="text-sm font-semibold text-[#FF5A5F]">無法讀取設定狀態</div>
-            <div className="mt-2 text-sm text-[#A9B7D0]">{state.message}</div>
+          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="text-sm font-semibold text-rose-700">無法讀取設定狀態</div>
+            <div className="mt-2 text-sm text-slate-600">{state.message}</div>
           </div>
         ) : null}
 
@@ -261,11 +261,11 @@ export default function Setup() {
               </div>
               <div className="mt-3">
                 你的 Redirect URI（必須完全一致）：
-                <div className="mt-2 flex flex-wrap items-center gap-2 rounded-xl border border-[#24324D] bg-black/10 p-3">
-                  <div className="break-all font-mono text-xs text-[#EAF0FF]">{data.redirectUrl}</div>
+                <div className="mt-2 flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                  <div className="break-all font-mono text-xs text-slate-900">{data.redirectUrl}</div>
                   <button
                     onClick={() => copyText(data.redirectUrl)}
-                    className="ml-auto inline-flex items-center gap-2 rounded-xl bg-white/10 px-3 py-2 text-xs font-semibold hover:bg-white/15"
+                    className="ml-auto inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
                   >
                     <Copy className="h-4 w-4" />
                     複製
@@ -276,7 +276,7 @@ export default function Setup() {
 
             <Card title="1.5) 上傳 OAuth JSON（自動抓 client_id / secret）">
               <div className="flex flex-col gap-3">
-                <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-[#24324D] bg-black/10 px-4 py-3 text-sm font-semibold text-[#EAF0FF] hover:bg-white/5">
+                <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-100">
                   <Upload className="h-4 w-4" />
                   選擇 JSON 檔
                   <input
@@ -288,16 +288,16 @@ export default function Setup() {
                 </label>
 
                 {oauthJson.status === 'ready' ? (
-                  <div className="rounded-xl border border-[#24324D] bg-black/10 p-4">
-                    <div className="text-xs text-[#A9B7D0]">已解析</div>
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                    <div className="text-xs text-slate-600">已解析</div>
                     <div className="mt-2 space-y-3">
                       <div>
-                        <div className="text-xs text-[#A9B7D0]">GOOGLE_CLIENT_ID</div>
+                        <div className="text-xs text-slate-600">GOOGLE_CLIENT_ID</div>
                         <div className="mt-1 flex flex-wrap items-center gap-2">
-                          <div className="break-all font-mono text-xs text-[#EAF0FF]">{oauthJson.data.clientId}</div>
+                          <div className="break-all font-mono text-xs text-slate-900">{oauthJson.data.clientId}</div>
                           <button
                             onClick={() => copyText(oauthJson.data.clientId)}
-                            className="ml-auto inline-flex items-center gap-2 rounded-xl bg-white/10 px-3 py-2 text-xs font-semibold hover:bg-white/15"
+                            className="ml-auto inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
                           >
                             <Copy className="h-4 w-4" />
                             複製
@@ -306,12 +306,12 @@ export default function Setup() {
                       </div>
 
                       <div>
-                        <div className="text-xs text-[#A9B7D0]">GOOGLE_CLIENT_SECRET</div>
+                        <div className="text-xs text-slate-600">GOOGLE_CLIENT_SECRET</div>
                         <div className="mt-1 flex flex-wrap items-center gap-2">
-                          <div className="break-all font-mono text-xs text-[#EAF0FF]">{oauthJson.data.clientSecret}</div>
+                          <div className="break-all font-mono text-xs text-slate-900">{oauthJson.data.clientSecret}</div>
                           <button
                             onClick={() => copyText(oauthJson.data.clientSecret)}
-                            className="ml-auto inline-flex items-center gap-2 rounded-xl bg-white/10 px-3 py-2 text-xs font-semibold hover:bg-white/15"
+                            className="ml-auto inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
                           >
                             <Copy className="h-4 w-4" />
                             複製
@@ -320,14 +320,14 @@ export default function Setup() {
                       </div>
 
                       <div>
-                        <div className="text-xs text-[#A9B7D0]">一鍵產生 .env 片段</div>
+                        <div className="text-xs text-slate-600">一鍵產生 .env 片段</div>
                         <div className="mt-2 flex flex-col gap-2 sm:flex-row">
                           <button
                             onClick={() => {
                               const snippet = `GOOGLE_CLIENT_ID=${oauthJson.data.clientId}\nGOOGLE_CLIENT_SECRET=${oauthJson.data.clientSecret}\n`
                               void copyText(snippet)
                             }}
-                            className="inline-flex items-center justify-center rounded-xl bg-white/10 px-4 py-2 text-sm font-semibold hover:bg-white/15"
+                            className="inline-flex items-center justify-center rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
                           >
                             複製 .env 片段
                           </button>
@@ -336,7 +336,7 @@ export default function Setup() {
                               const snippet = `GOOGLE_CLIENT_ID=${oauthJson.data.clientId}\nGOOGLE_CLIENT_SECRET=${oauthJson.data.clientSecret}\n`
                               downloadTextFile('google-oauth.env', snippet)
                             }}
-                            className="inline-flex items-center justify-center rounded-xl border border-[#24324D] px-4 py-2 text-sm font-semibold hover:bg-white/5"
+                            className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
                           >
                             下載檔案
                           </button>
@@ -345,10 +345,10 @@ export default function Setup() {
 
                       {oauthJson.data.redirectUris.length ? (
                         <div>
-                          <div className="text-xs text-[#A9B7D0]">JSON 內的 redirect_uris（參考）</div>
+                          <div className="text-xs text-slate-600">JSON 內的 redirect_uris（參考）</div>
                           <div className="mt-2 space-y-1">
                             {oauthJson.data.redirectUris.slice(0, 5).map((u) => (
-                              <div key={u} className="break-all font-mono text-xs text-[#A9B7D0]">
+                              <div key={u} className="break-all font-mono text-xs text-slate-600">
                                 {u}
                               </div>
                             ))}
@@ -358,7 +358,7 @@ export default function Setup() {
                     </div>
                   </div>
                 ) : oauthJson.status === 'error' ? (
-                  <div className="rounded-xl border border-[#24324D] bg-black/10 p-4 text-sm text-[#FF5A5F]">
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-rose-700">
                     JSON 解析失敗：{oauthJson.message}
                   </div>
                 ) : (
@@ -371,15 +371,15 @@ export default function Setup() {
 
             <Card title="2) Google Cloud 一鍵導覽（開新分頁）">
               <div className="space-y-2">
-                <a className="inline-flex items-center gap-2 text-[#4F8CFF] hover:underline" href={googleLinks.apis} target="_blank" rel="noreferrer">
+                <a className="inline-flex items-center gap-2 text-emerald-700 hover:underline" href={googleLinks.apis} target="_blank" rel="noreferrer">
                   <ExternalLink className="h-4 w-4" />
                   打開 API Library（啟用 Gmail/Calendar/People）
                 </a>
-                <a className="inline-flex items-center gap-2 text-[#4F8CFF] hover:underline" href={googleLinks.consent} target="_blank" rel="noreferrer">
+                <a className="inline-flex items-center gap-2 text-emerald-700 hover:underline" href={googleLinks.consent} target="_blank" rel="noreferrer">
                   <ExternalLink className="h-4 w-4" />
                   打開 OAuth Consent Screen
                 </a>
-                <a className="inline-flex items-center gap-2 text-[#4F8CFF] hover:underline" href={googleLinks.credentials} target="_blank" rel="noreferrer">
+                <a className="inline-flex items-center gap-2 text-emerald-700 hover:underline" href={googleLinks.credentials} target="_blank" rel="noreferrer">
                   <ExternalLink className="h-4 w-4" />
                   打開 Credentials（建立 OAuth Client）
                 </a>
@@ -393,20 +393,38 @@ export default function Setup() {
               <div className="flex flex-col gap-3 sm:flex-row">
                 <a
                   href="/api/oauth/google/start"
-                  className="inline-flex items-center justify-center rounded-xl bg-[#4F8CFF] px-6 py-3 text-sm font-semibold text-[#0B1220] hover:bg-[#3B79F0]"
+                  className="inline-flex items-center justify-center rounded-xl bg-emerald-600 px-6 py-3 text-sm font-semibold text-white hover:bg-emerald-700"
                 >
                   開始用 Google 授權
                 </a>
                 <a
                   href="/dashboard"
-                  className="inline-flex items-center justify-center rounded-xl border border-[#24324D] px-6 py-3 text-sm font-semibold hover:bg-white/5"
+                  className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-6 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
                 >
                   前往控制台
                 </a>
               </div>
               <div className="mt-3">
-                授權成功後，到控制台按「輪替 API Key」取得一次性完整 key。
+                授權成功後，到控制台確認「連線狀態」是否顯示已授權。
               </div>
+            </Card>
+
+            <Card title="3.5) SMS（Twilio）設定">
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <a
+                  href="/twilio"
+                  className="inline-flex items-center justify-center rounded-xl bg-emerald-600 px-6 py-3 text-sm font-semibold text-white hover:bg-emerald-700"
+                >
+                  前往 Twilio 設定
+                </a>
+                <a
+                  href="/login"
+                  className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-6 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                >
+                  測試手機登入
+                </a>
+              </div>
+              <div className="mt-3">手機 OTP 的 SMS 供應商需先設定好，才能收到驗證碼。</div>
             </Card>
 
             <Card title="4) 一鍵產生 Vercel 環境變數（可整段貼上）">
@@ -415,38 +433,38 @@ export default function Setup() {
                 <span className="font-mono">SUPABASE_SERVICE_ROLE_KEY</span> 自己貼上即可。
               </div>
               <div className="mt-3">
-                <div className="text-xs text-[#A9B7D0]">部署網址（會用來生成 APP_BASE_URL 與 GOOGLE_REDIRECT_URL）</div>
+                <div className="text-xs text-slate-600">部署網址（會用來生成 APP_BASE_URL 與 GOOGLE_REDIRECT_URL）</div>
                 <input
                   value={targetBaseUrl}
                   onChange={(e) => setTargetBaseUrl(e.target.value)}
                   placeholder="https://your-project.vercel.app"
-                  className="mt-2 w-full rounded-xl border border-[#24324D] bg-black/10 px-4 py-3 text-sm text-[#EAF0FF] placeholder:text-[#A9B7D0] focus:outline-none"
+                  className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none"
                 />
               </div>
               <div className="mt-3 flex flex-col gap-2 sm:flex-row">
                 <button
                   onClick={() => setSecrets(generateSecrets())}
-                  className="inline-flex items-center justify-center rounded-xl border border-[#24324D] px-4 py-2 text-sm font-semibold hover:bg-white/5"
+                  className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
                 >
                   重新生成金鑰
                 </button>
                 <button
                   onClick={() => void copyText(vercelSnippet)}
-                  className="inline-flex items-center justify-center rounded-xl bg-white/10 px-4 py-2 text-sm font-semibold hover:bg-white/15"
+                  className="inline-flex items-center justify-center rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
                 >
                   複製整段
                 </button>
                 <button
                   onClick={() => downloadTextFile('vercel.env', vercelSnippet)}
-                  className="inline-flex items-center justify-center rounded-xl border border-[#24324D] px-4 py-2 text-sm font-semibold hover:bg-white/5"
+                  className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
                 >
                   下載檔案
                 </button>
               </div>
-              <pre className="mt-3 max-h-[260px] overflow-auto rounded-xl border border-[#24324D] bg-[#0B1220] p-4 text-xs text-[#A9B7D0]">
+              <pre className="mt-3 max-h-[260px] overflow-auto rounded-xl border border-slate-200 bg-slate-50 p-4 text-xs text-slate-700">
                 {vercelSnippet}
               </pre>
-              <div className="mt-2 text-xs text-[#A9B7D0]">
+              <div className="mt-2 text-xs text-slate-500">
                 Vercel 後台 Environment Variables 支援一次貼多行；貼上後請記得保存并触发重新部署。
               </div>
             </Card>
